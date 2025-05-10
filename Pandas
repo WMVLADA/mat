@@ -1,0 +1,60 @@
+import pandas as pd
+import os
+import sys
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import QFile, QIODevice
+
+
+class App():
+    def __init__(self) -> None:
+        self._window = None
+
+    def fire_app(self) -> None:
+        app = QApplication(sys.argv)
+
+        ui_soubor_nazev = os.path.join(os.path.dirname(__file__), "qtecko.ui")
+        ui_soubor = QFile(ui_soubor_nazev)
+        if not ui_soubor.open(QIODevice.ReadOnly):
+            self.show_error_dialog("Nepodařilo se načíst šablonu UI.")
+            sys.exit(-1)
+
+        nacteni = QUiLoader()
+        self._window = nacteni.load(ui_soubor)
+        ui_soubor.close()
+
+        if not self._window:
+            self.show_error_dialog("Nepodařilo se načíst uživatelské okno.")
+            sys.exit(-1)
+
+        self._window.makej.clicked.connect(self.zobraz)
+        self._window.show()
+        sys.exit(app.exec())
+
+    def zobraz(self):
+        try:
+            df = pd.read_excel(os.path.join(os.path.dirname(__file__), "codes.xlsx"))
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setWindowTitle("Chyba")
+            msg.setText(f"Nepodařilo se načíst data: {str(e)}")
+            msg.exec()
+
+        pocet_kodu = 0
+        for index, row in df.iterrows():
+            kod = row['Kod']
+            if kod[1] == "x" and kod[2] == "x":
+                pocet_kodu += 1
+        self._window.vystup_x.setText(f"Kódů s x na druhe a třetí pozici je: {pocet_kodu}")
+
+        pocty_jmen = df['Jméno'].value_counts().to_dict()
+        self._window.vystup_jmena.setText("".join(f"{name}: {count}, " for name, count in pocty_jmen.items()))
+
+        pocty_prijmeni = df['Příjmení'].value_counts().to_dict()
+        self._window.vystup_prijmeni.setText("".join(f"{name}: {count}, " for name, count in pocty_prijmeni.items()))
+
+
+if __name__ == "__main__":
+    app = App()
+    app.fire_app()
